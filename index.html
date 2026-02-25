@@ -888,32 +888,23 @@
                         <span>智能报告生成</span>
                     </div>
 
-                    <div class="stats-row">
-                        <div class="stat-card" style="cursor: pointer;" @click="generateReport('daily')">
-                            <div class="stat-icon bg-blue">
-                                <i class="fa-solid fa-calendar-day"></i>
+                    <div class="data-card" style="margin-bottom: 24px; padding: 24px;">
+                        <div style="display: flex; align-items: flex-end; gap: 24px; flex-wrap: wrap;">
+                            <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 200px;">
+                                <label class="form-label">选择统计日期</label>
+                                <input type="date" class="form-control" v-model="reportEndDate" @change="updateReportDates">
+                                <p style="font-size: 12px; color: var(--text-sub); margin-top: 8px;">* 报告将以此日期为基准向上汇总</p>
                             </div>
-                            <div class="stat-info">
-                                <div class="stat-value">日报</div>
-                                <div class="stat-label">生成今日工作总结</div>
-                            </div>
-                        </div>
-                        <div class="stat-card" style="cursor: pointer;" @click="generateReport('weekly')">
-                            <div class="stat-icon bg-green">
-                                <i class="fa-solid fa-calendar-week"></i>
-                            </div>
-                            <div class="stat-info">
-                                <div class="stat-value">周报</div>
-                                <div class="stat-label">生成本周工作汇总</div>
-                            </div>
-                        </div>
-                        <div class="stat-card" style="cursor: pointer;" @click="generateReport('monthly')">
-                            <div class="stat-icon bg-purple">
-                                <i class="fa-solid fa-calendar-days"></i>
-                            </div>
-                            <div class="stat-info">
-                                <div class="stat-value">月报</div>
-                                <div class="stat-label">生成本月绩效分析</div>
+                            <div style="display: flex; gap: 12px;">
+                                <button class="btn btn-primary" @click="generateReport('daily')">
+                                    <i class="fa-solid fa-calendar-day"></i> 生成日报
+                                </button>
+                                <button class="btn btn-primary" @click="generateReport('weekly')">
+                                    <i class="fa-solid fa-calendar-week"></i> 生成周报
+                                </button>
+                                <button class="btn btn-primary" @click="generateReport('monthly')">
+                                    <i class="fa-solid fa-calendar-days"></i> 生成月报
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -1274,6 +1265,8 @@
                     // 报告
                     generatedReport: '',
                     reportTitle: '',
+                    reportStartDate: this.getTodayDate(),
+                    reportEndDate: this.getTodayDate(),
 
                     // 项目
                     projects: [],
@@ -1420,25 +1413,25 @@
 
                 // 报告生成
                 generateReport(type) {
-                    const today = new Date();
-                    let startDate = new Date();
+                    const end = new Date(this.reportEndDate);
+                    let start = new Date(this.reportEndDate);
                     let title = "";
 
                     if (type === 'daily') {
-                        startDate.setHours(0, 0, 0, 0);
-                        title = `工作日报 (${today.toLocaleDateString()})`;
+                        start.setHours(0, 0, 0, 0);
+                        title = `工作日报 (${end.toLocaleDateString()})`;
                     } else if (type === 'weekly') {
-                        startDate.setDate(today.getDate() - 7);
-                        title = `工作周报 (${startDate.toLocaleDateString()} - ${today.toLocaleDateString()})`;
+                        start.setDate(end.getDate() - 7);
+                        title = `工作周报 (${start.toLocaleDateString()} - ${end.toLocaleDateString()})`;
                     } else if (type === 'monthly') {
-                        startDate.setMonth(today.getMonth() - 1);
-                        title = `工作月报 (${startDate.toLocaleDateString()} - ${today.toLocaleDateString()})`;
+                        start.setMonth(end.getMonth() - 1);
+                        title = `工作月报 (${start.toLocaleDateString()} - ${end.toLocaleDateString()})`;
                     }
 
                     this.reportTitle = title;
                     let report = `【${title}】\n\n`;
 
-                    // 1. 待办事项总结
+                    // 1. 待办事项总结 (TODO: 待办事项目前没有日期，假设为今日或全量，建议未来给待办增加日期)
                     const completedTodos = this.todos.filter(t => t.completed);
                     const pendingTodos = this.todos.filter(t => !t.completed);
                     
@@ -1481,7 +1474,10 @@
 
                     // 4. 运维记录
                     report += `四、 日常运维情况\n`;
-                    const recentOps = this.operations.filter(o => new Date(o.date) >= startDate);
+                    const recentOps = this.operations.filter(o => {
+                        const opDate = new Date(o.date);
+                        return opDate >= start && opDate <= end;
+                    });
                     if (recentOps.length > 0) {
                         recentOps.forEach(o => {
                             report += `  - [${o.type}] ${o.description} (${o.person}, 状态: ${this.getStatusText(o.status)})\n`;
@@ -1493,7 +1489,10 @@
 
                     // 5. 成本统计
                     report += `五、 成本支出汇总\n`;
-                    const recentCosts = this.costs.filter(c => new Date(c.date) >= startDate);
+                    const recentCosts = this.costs.filter(c => {
+                        const costDate = new Date(c.date);
+                        return costDate >= start && costDate <= end;
+                    });
                     const totalRecentCost = recentCosts.reduce((sum, c) => sum + c.amount, 0);
                     if (recentCosts.length > 0) {
                         report += `  - 期间支出总额: ¥${totalRecentCost.toLocaleString()}\n`;
