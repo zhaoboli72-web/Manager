@@ -504,27 +504,34 @@
                 <div v-if="currentTab === 'todo'">
                     <div class="section-title">
                         <span>每日待办任务</span>
-                        <div style="display: flex; gap: 10px;">
-                            <input type="text" class="form-control" v-model="newTodoText" placeholder="添加新的待办事项..." @keyup.enter="addTodo" style="width: 300px;">
-                            <button class="btn btn-primary" @click="addTodo">添加</button>
+                        <div style="display: flex; gap: 12px; align-items: center;">
+                            <span style="font-size: 14px; color: var(--text-sub);">查看日期:</span>
+                            <input type="date" class="form-control" v-model="todoSelectedDate" style="width: 160px; padding: 6px 12px;">
+                        </div>
+                    </div>
+
+                    <div class="data-card" style="margin-bottom: 24px;">
+                        <div style="display: flex; gap: 10px; padding: 4px;">
+                            <input type="text" class="form-control" v-model="newTodoText" :placeholder="'在 ' + todoSelectedDate + ' 添加新的待办事项...'" @keyup.enter="addTodo" style="flex: 1;">
+                            <button class="btn btn-primary" @click="addTodo">添加任务</button>
                         </div>
                     </div>
 
                     <div class="card-grid" style="grid-template-columns: 1fr;">
-                        <div class="data-card">
-                            <div v-if="todos.length === 0" class="empty-state" style="padding: 48px;">
-                                <i class="fa-solid fa-clipboard-list" style="font-size: 48px; margin-bottom: 16px; opacity: 0.3;"></i>
-                                <p>今日暂无待办事项，放轻松或添加新任务吧！</p>
+                        <div class="data-card" style="padding: 0;">
+                            <div v-if="filteredTodos.length === 0" class="empty-state" style="padding: 64px;">
+                                <i class="fa-solid fa-clipboard-list" style="font-size: 48px; margin-bottom: 16px; opacity: 0.2;"></i>
+                                <p>{{ todoSelectedDate === getTodayDate() ? '今日暂无待办事项' : todoSelectedDate + ' 暂无历史记录' }}</p>
                             </div>
                             <div v-else>
-                                <div v-for="todo in todos" :key="todo.id" style="padding: 16px; border-bottom: 1px solid #f0f0f0; transition: var(--transition);" :style="{ opacity: todo.completed ? 0.6 : 1 }">
+                                <div v-for="todo in filteredTodos" :key="todo.id" style="padding: 16px; border-bottom: 1px solid #f0f0f0; transition: var(--transition);" :style="{ opacity: todo.completed ? 0.6 : 1 }">
                                     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
                                         <div style="display: flex; align-items: center; gap: 12px; flex: 1; cursor: pointer;" @click="toggleTodo(todo)">
                                             <i :class="todo.completed ? 'fa-regular fa-circle-check' : 'fa-regular fa-circle'" :style="{ color: todo.completed ? '#52c41a' : '#bfbfbf', fontSize: '20px' }"></i>
                                             <span :style="{ textDecoration: todo.completed ? 'line-through' : 'none', color: todo.completed ? 'var(--text-sub)' : 'var(--text-main)', fontSize: '15px', fontWeight: '500' }">{{ todo.text }}</span>
                                         </div>
                                         <div style="display: flex; align-items: center; gap: 16px;">
-                                            <span style="font-size: 12px; color: var(--text-sub);">{{ todo.date }} {{ todo.time }}</span>
+                                            <span style="font-size: 12px; color: var(--text-sub);">{{ todo.time }}</span>
                                             <button class="btn btn-ghost btn-danger btn-sm" @click.stop="deleteTodo(todo.id)">
                                                 <i class="fa-regular fa-trash-can"></i>
                                             </button>
@@ -1272,6 +1279,7 @@
                     // 每日待办
                     todos: [],
                     newTodoText: '',
+                    todoSelectedDate: this.getTodayDate(),
 
                     // 报告
                     generatedReport: '',
@@ -1350,6 +1358,9 @@
                 };
             },
             computed: {
+                filteredTodos() {
+                    return this.todos.filter(t => t.date === this.todoSelectedDate);
+                },
                 totalProjects() {
                     return this.projects.length;
                 },
@@ -1409,7 +1420,7 @@
                         text: this.newTodoText,
                         completed: false,
                         progress: 0,
-                        date: this.getTodayDate(),
+                        date: this.todoSelectedDate,
                         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                     });
                     this.newTodoText = '';
