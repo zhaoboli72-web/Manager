@@ -517,16 +517,27 @@
                                 <p>今日暂无待办事项，放轻松或添加新任务吧！</p>
                             </div>
                             <div v-else>
-                                <div v-for="todo in todos" :key="todo.id" style="display: flex; align-items: center; justify-content: space-between; padding: 16px; border-bottom: 1px solid #f0f0f0; transition: var(--transition);" :style="{ opacity: todo.completed ? 0.6 : 1 }">
-                                    <div style="display: flex; align-items: center; gap: 12px; flex: 1; cursor: pointer;" @click="toggleTodo(todo)">
-                                        <i :class="todo.completed ? 'fa-regular fa-circle-check' : 'fa-regular fa-circle'" :style="{ color: todo.completed ? '#52c41a' : '#bfbfbf', fontSize: '20px' }"></i>
-                                        <span :style="{ textDecoration: todo.completed ? 'line-through' : 'none', color: todo.completed ? 'var(--text-sub)' : 'var(--text-main)', fontSize: '15px' }">{{ todo.text }}</span>
+                                <div v-for="todo in todos" :key="todo.id" style="padding: 16px; border-bottom: 1px solid #f0f0f0; transition: var(--transition);" :style="{ opacity: todo.completed ? 0.6 : 1 }">
+                                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                                        <div style="display: flex; align-items: center; gap: 12px; flex: 1; cursor: pointer;" @click="toggleTodo(todo)">
+                                            <i :class="todo.completed ? 'fa-regular fa-circle-check' : 'fa-regular fa-circle'" :style="{ color: todo.completed ? '#52c41a' : '#bfbfbf', fontSize: '20px' }"></i>
+                                            <span :style="{ textDecoration: todo.completed ? 'line-through' : 'none', color: todo.completed ? 'var(--text-sub)' : 'var(--text-main)', fontSize: '15px', fontWeight: '500' }">{{ todo.text }}</span>
+                                        </div>
+                                        <div style="display: flex; align-items: center; gap: 16px;">
+                                            <span style="font-size: 12px; color: var(--text-sub);">{{ todo.date }} {{ todo.time }}</span>
+                                            <button class="btn btn-ghost btn-danger btn-sm" @click.stop="deleteTodo(todo.id)">
+                                                <i class="fa-regular fa-trash-can"></i>
+                                            </button>
+                                        </div>
                                     </div>
-                                    <div style="display: flex; align-items: center; gap: 16px;">
-                                        <span style="font-size: 12px; color: var(--text-sub);">{{ todo.time }}</span>
-                                        <button class="btn btn-ghost btn-danger btn-sm" @click.stop="deleteTodo(todo.id)">
-                                            <i class="fa-regular fa-trash-can"></i>
-                                        </button>
+                                    <!-- Progress Control -->
+                                    <div style="display: flex; align-items: center; gap: 16px; padding-left: 32px;">
+                                        <div style="flex: 1; position: relative; height: 12px; display: flex; align-items: center;">
+                                            <input type="range" min="0" max="100" v-model.number="todo.progress" @change="updateTodoProgress(todo)" 
+                                                   style="width: 100%; height: 4px; background: #e8e8e8; border-radius: 2px; outline: none; cursor: pointer; -webkit-appearance: none;">
+                                            <div :style="{ width: todo.progress + '%', background: todo.completed ? '#52c41a' : 'var(--primary-color)', height: '4px', position: 'absolute', left: 0, borderRadius: '2px', pointerEvents: 'none' }"></div>
+                                        </div>
+                                        <span style="font-size: 12px; font-weight: 600; color: var(--text-sub); min-width: 35px; text-align: right;">{{ todo.progress }}%</span>
                                     </div>
                                 </div>
                             </div>
@@ -1397,6 +1408,7 @@
                         id: Date.now(),
                         text: this.newTodoText,
                         completed: false,
+                        progress: 0,
                         date: this.getTodayDate(),
                         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                     });
@@ -1405,6 +1417,15 @@
                 },
                 toggleTodo(todo) {
                     todo.completed = !todo.completed;
+                    todo.progress = todo.completed ? 100 : (todo.progress === 100 ? 0 : todo.progress);
+                    this.saveData();
+                },
+                updateTodoProgress(todo) {
+                    if (todo.progress == 100) {
+                        todo.completed = true;
+                    } else if (todo.progress < 100) {
+                        todo.completed = false;
+                    }
                     this.saveData();
                 },
                 deleteTodo(id) {
@@ -1459,11 +1480,11 @@
                     report += `一、 任务完成情况\n`;
                     if (completedTodos.length > 0) {
                         report += `✅ 已完成任务：\n`;
-                        completedTodos.forEach(t => report += `  - ${t.text} (${t.date})\n`);
+                        completedTodos.forEach(t => report += `  - ${t.text} (100%)\n`);
                     }
                     if (pendingTodos.length > 0) {
                         report += `⏳ 待推进任务：\n`;
-                        pendingTodos.forEach(t => report += `  - ${t.text} (${t.date})\n`);
+                        pendingTodos.forEach(t => report += `  - ${t.text} (当前进度: ${t.progress || 0}%)\n`);
                     }
                     if (periodTodos.length === 0) {
                         report += `  - 该时段内暂无任务记录\n`;
