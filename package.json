@@ -1,0 +1,16 @@
+{
+  "name": "project-management-system",
+  "version": "1.0.0",
+  "description": "项目经理工作管理系统",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx serve .",
+    "deploy": "vercel --prod"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "serve": "^14.2.1"
+  }
+}

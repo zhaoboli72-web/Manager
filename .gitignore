@@ -1,0 +1,6 @@
+.vscode/
+.claude/
+node_modules/
+.vercel/
+.env
+*.log
