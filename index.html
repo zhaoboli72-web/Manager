@@ -1397,6 +1397,7 @@
                         id: Date.now(),
                         text: this.newTodoText,
                         completed: false,
+                        date: this.getTodayDate(),
                         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                     });
                     this.newTodoText = '';
@@ -1413,43 +1414,63 @@
 
                 // 报告生成
                 generateReport(type) {
-                    const end = new Date(this.reportEndDate);
+                    const selectedDate = new Date(this.reportEndDate);
                     let start = new Date(this.reportEndDate);
+                    let end = new Date(this.reportEndDate);
                     let title = "";
 
+                    // 设置时间范围的零点
+                    start.setHours(0, 0, 0, 0);
+                    end.setHours(23, 59, 59, 999);
+
                     if (type === 'daily') {
-                        start.setHours(0, 0, 0, 0);
-                        title = `工作日报 (${end.toLocaleDateString()})`;
+                        // 日报：即选中的那一天
+                        title = `工作日报 (${selectedDate.toLocaleDateString()})`;
                     } else if (type === 'weekly') {
-                        start.setDate(end.getDate() - 7);
+                        // 周报：选中日期所在的那一周 (周一到周日)
+                        const day = selectedDate.getDay() || 7; // 获取星期几，1-7
+                        start.setDate(selectedDate.getDate() - day + 1);
+                        end.setDate(start.getDate() + 6);
+                        end.setHours(23, 59, 59, 999);
                         title = `工作周报 (${start.toLocaleDateString()} - ${end.toLocaleDateString()})`;
                     } else if (type === 'monthly') {
-                        start.setMonth(end.getMonth() - 1);
-                        title = `工作月报 (${start.toLocaleDateString()} - ${end.toLocaleDateString()})`;
+                        // 月报：选中日期所在的那一个月
+                        start = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
+                        end = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0);
+                        end.setHours(23, 59, 59, 999);
+                        const monthName = selectedDate.toLocaleString('zh-CN', { month: 'long' });
+                        title = `工作月报 (${selectedDate.getFullYear()}年${monthName})`;
                     }
 
                     this.reportTitle = title;
                     let report = `【${title}】\n\n`;
 
-                    // 1. 待办事项总结 (TODO: 待办事项目前没有日期，假设为今日或全量，建议未来给待办增加日期)
-                    const completedTodos = this.todos.filter(t => t.completed);
-                    const pendingTodos = this.todos.filter(t => !t.completed);
+                    // 辅助过滤函数
+                    const filterByDate = (itemDate) => {
+                        const d = new Date(itemDate);
+                        return d >= start && d <= end;
+                    };
+
+                    // 1. 待办事项总结
+                    const periodTodos = this.todos.filter(t => filterByDate(t.date || t.id)); // 兼容旧数据
+                    const completedTodos = periodTodos.filter(t => t.completed);
+                    const pendingTodos = periodTodos.filter(t => !t.completed);
                     
                     report += `一、 任务完成情况\n`;
                     if (completedTodos.length > 0) {
                         report += `✅ 已完成任务：\n`;
-                        completedTodos.forEach(t => report += `  - ${t.text}\n`);
+                        completedTodos.forEach(t => report += `  - ${t.text} (${t.date})\n`);
                     }
                     if (pendingTodos.length > 0) {
                         report += `⏳ 待推进任务：\n`;
-                        pendingTodos.forEach(t => report += `  - ${t.text}\n`);
+                        pendingTodos.forEach(t => report += `  - ${t.text} (${t.date})\n`);
                     }
-                    if (completedTodos.length === 0 && pendingTodos.length === 0) {
-                        report += `  - 暂无任务记录\n`;
+                    if (periodTodos.length === 0) {
+                        report += `  - 该时段内暂无任务记录\n`;
                     }
                     report += `\n`;
 
-                    // 2. 项目进度更新
+                    // 2. 项目进度动态
                     report += `二、 项目进度动态\n`;
                     if (this.projects.length > 0) {
                         this.projects.forEach(p => {
@@ -1460,7 +1481,7 @@
                     }
                     report += `\n`;
 
-                    // 3. 风险与问题
+                    // 3. 风险与问题 (显示当前所有未关闭的风险)
                     const activeRisks = this.risks.filter(r => r.status !== 'closed');
                     report += `三、 风险预警与处理\n`;
                     if (activeRisks.length > 0) {
@@ -1474,13 +1495,10 @@
 
                     // 4. 运维记录
                     report += `四、 日常运维情况\n`;
-                    const recentOps = this.operations.filter(o => {
-                        const opDate = new Date(o.date);
-                        return opDate >= start && opDate <= end;
-                    });
+                    const recentOps = this.operations.filter(o => filterByDate(o.date));
                     if (recentOps.length > 0) {
                         recentOps.forEach(o => {
-                            report += `  - [${o.type}] ${o.description} (${o.person}, 状态: ${this.getStatusText(o.status)})\n`;
+                            report += `  - [${o.date}][${o.type}] ${o.description} (${o.person}, 状态: ${this.getStatusText(o.status)})\n`;
                         });
                     } else {
                         report += `  - 期间无运维记录\n`;
@@ -1489,17 +1507,14 @@
 
                     // 5. 成本统计
                     report += `五、 成本支出汇总\n`;
-                    const recentCosts = this.costs.filter(c => {
-                        const costDate = new Date(c.date);
-                        return costDate >= start && costDate <= end;
-                    });
+                    const recentCosts = this.costs.filter(c => filterByDate(c.date));
                     const totalRecentCost = recentCosts.reduce((sum, c) => sum + c.amount, 0);
                     if (recentCosts.length > 0) {
                         report += `  - 期间支出总额: ¥${totalRecentCost.toLocaleString()}\n`;
-                        recentCosts.slice(0, 5).forEach(c => {
-                            report += `    * ${c.type}: ${c.description} (¥${c.amount})\n`;
+                        recentCosts.slice(0, 10).forEach(c => {
+                            report += `    * [${c.date}] ${c.type}: ${c.description} (¥${c.amount})\n`;
                         });
-                        if (recentCosts.length > 5) report += `    * ...等共 ${recentCosts.length} 项支出\n`;
+                        if (recentCosts.length > 10) report += `    * ...等共 ${recentCosts.length} 项支出\n`;
                     } else {
                         report += `  - 期间无成本支出\n`;
                     }
