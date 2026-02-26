@@ -613,6 +613,16 @@
                                 <span :class="'badge badge-' + project.status">{{ getStatusText(project.status) }}</span>
                             </div>
                             <p style="font-size: 13px; color: #8c8c8c; margin-bottom: 12px; min-height: 40px;">{{ project.description }}</p>
+                            
+                            <div v-if="project.content || project.remainingContent" style="background: #f8f9fa; border-radius: 8px; padding: 10px; margin-bottom: 12px; font-size: 11px;">
+                                <div v-if="project.content" style="margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                    <span style="font-weight: 600;">制作:</span> {{ project.content }}
+                                </div>
+                                <div v-if="project.remainingContent" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                    <span style="font-weight: 600; color: #ff4d4f;">剩余:</span> {{ project.remainingContent }}
+                                </div>
+                            </div>
+
                             <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 8px;">
                                 <span>进度</span>
                                 <span style="font-weight: 600;">{{ project.progress }}%</span>
@@ -646,6 +656,17 @@
                             </div>
                             <p style="font-size: 13px; color: #8c8c8c; margin-bottom: 12px;">{{ project.description }}</p>
                             
+                            <div v-if="project.content || project.remainingContent" style="background: #f8f9fa; border-radius: 8px; padding: 12px; margin-bottom: 16px;">
+                                <div v-if="project.content" style="margin-bottom: 8px;">
+                                    <div style="font-size: 12px; font-weight: 600; color: var(--text-main); margin-bottom: 4px;">制作内容:</div>
+                                    <div style="font-size: 12px; color: #595959; white-space: pre-wrap;">{{ project.content }}</div>
+                                </div>
+                                <div v-if="project.remainingContent">
+                                    <div style="font-size: 12px; font-weight: 600; color: #ff4d4f; margin-bottom: 4px;">剩余内容:</div>
+                                    <div style="font-size: 12px; color: #595959; white-space: pre-wrap;">{{ project.remainingContent }}</div>
+                                </div>
+                            </div>
+
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 13px; margin-bottom: 16px;">
                                 <div><span style="color: #8c8c8c;">开始:</span> {{ project.startDate }}</div>
                                 <div><span style="color: #8c8c8c;">结束:</span> {{ project.endDate }}</div>
@@ -971,6 +992,14 @@
                 <div class="form-group">
                     <label class="form-label">项目经理</label>
                     <input type="text" class="form-control" v-model="newProject.manager" placeholder="输入项目经理姓名">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">项目制作内容</label>
+                    <textarea class="form-control" v-model="newProject.content" placeholder="输入项目具体制作内容" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">剩余制作内容</label>
+                    <textarea class="form-control" v-model="newProject.remainingContent" placeholder="输入剩余待完成内容" rows="3"></textarea>
                 </div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
                     <div class="form-group">
@@ -1572,6 +1601,8 @@
                     return {
                         name: '',
                         description: '',
+                        content: '',
+                        remainingContent: '',
                         startDate: '',
                         endDate: '',
                         status: 'planning',
