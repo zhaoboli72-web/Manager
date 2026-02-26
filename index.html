@@ -719,15 +719,26 @@
                                 <thead>
                                     <tr>
                                         <th>里程碑</th>
+                                        <th>负责人</th>
                                         <th>截止日期</th>
+                                        <th>进度</th>
                                         <th>状态</th>
                                         <th>操作</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <tr v-for="(milestone, index) in project.milestones" :key="index">
-                                        <td>{{ milestone.name }}</td>
+                                        <td style="font-weight: 500;">{{ milestone.name }}</td>
+                                        <td>{{ milestone.owner || '-' }}</td>
                                         <td>{{ milestone.date }}</td>
+                                        <td style="width: 150px;">
+                                            <div style="display: flex; align-items: center; gap: 8px;">
+                                                <div class="progress-outer" style="height: 6px; flex: 1;">
+                                                    <div class="progress-inner" :style="{ width: (milestone.progress || 0) + '%' }"></div>
+                                                </div>
+                                                <span style="font-size: 12px; min-width: 32px;">{{ milestone.progress || 0 }}%</span>
+                                            </div>
+                                        </td>
                                         <td><span :class="'badge badge-' + milestone.status">{{ getStatusText(milestone.status) }}</span></td>
                                         <td>
                                             <button class="btn btn-ghost btn-danger btn-sm" @click="deleteMilestone(project, index)">删除</button>
@@ -1105,8 +1116,18 @@
                     <input type="text" class="form-control" v-model="newMilestone.name" placeholder="输入里程碑名称">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">截止日期</label>
-                    <input type="date" class="form-control" v-model="newMilestone.date">
+                    <label class="form-label">负责人</label>
+                    <input type="text" class="form-control" v-model="newMilestone.owner" placeholder="输入负责人姓名">
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div class="form-group">
+                        <label class="form-label">截止日期</label>
+                        <input type="date" class="form-control" v-model="newMilestone.date">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">完成进度 (%)</label>
+                        <input type="number" class="form-control" v-model.number="newMilestone.progress" min="0" max="100" placeholder="0">
+                    </div>
                 </div>
                 <div class="form-group">
                     <label class="form-label">状态</label>
@@ -1340,7 +1361,9 @@
                     milestoneProject: null,
                     newMilestone: {
                         name: '',
+                        owner: '',
                         date: '',
+                        progress: 0,
                         status: 'planning'
                     },
 
@@ -1712,7 +1735,7 @@
                         this.milestoneProject.milestones = [];
                     }
                     this.milestoneProject.milestones.push({ ...this.newMilestone });
-                    this.newMilestone = { name: '', date: '', status: 'planning' };
+                    this.newMilestone = { name: '', owner: '', date: '', progress: 0, status: 'planning' };
                     this.showMilestoneModal = false;
                     this.milestoneProject = null;
                     this.saveData();
