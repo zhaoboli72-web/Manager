@@ -461,6 +461,9 @@
                 <div class="nav-item" :class="{ active: currentTab === 'overview' }" @click="currentTab = 'overview'">
                     <i class="fa-solid fa-gauge-high"></i> 我的仪表盘
                 </div>
+                <div class="nav-item" :class="{ active: currentTab === 'tasks' }" @click="currentTab = 'tasks'">
+                    <i class="fa-solid fa-tasks"></i> 任务管理
+                </div>
                 <div class="nav-item" :class="{ active: currentTab === 'todo' }" @click="currentTab = 'todo'">
                     <i class="fa-solid fa-calendar-check"></i> 每日待办
                 </div>
@@ -504,6 +507,125 @@
             </header>
 
             <main class="content-area">
+                <!-- Task Management -->
+                <div v-if="currentTab === 'tasks'">
+                    <div class="section-title">
+                        <span>任务列表</span>
+                        <button class="btn btn-primary" @click="addTask">+ 新增任务</button>
+                    </div>
+
+                    <!-- Filters -->
+                    <div class="data-card" style="margin-bottom: 24px;">
+                        <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+                            <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 200px;">
+                                <label class="form-label">按项目筛选</label>
+                                <select class="form-control" v-model="taskFilter.projectId">
+                                    <option value="">全部项目</option>
+                                    <option v-for="project in projects" :key="project.id" :value="project.id">{{ project.name }}</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 150px;">
+                                <label class="form-label">按负责人筛选</label>
+                                <select class="form-control" v-model="taskFilter.assignedTo">
+                                    <option value="">全部负责人</option>
+                                    <option v-for="person in allAssignees" :key="person" :value="person">{{ person }}</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 150px;">
+                                <label class="form-label">按状态筛选</label>
+                                <select class="form-control" v-model="taskFilter.status">
+                                    <option value="">全部状态</option>
+                                    <option value="todo">待办</option>
+                                    <option value="in_progress">进行中</option>
+                                    <option value="done">已完成</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 150px;">
+                                <label class="form-label">按优先级筛选</label>
+                                <select class="form-control" v-model="taskFilter.priority">
+                                    <option value="">全部优先级</option>
+                                    <option value="high">高</option>
+                                    <option value="medium">中</option>
+                                    <option value="low">低</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 150px; display: flex; align-items: flex-end;">
+                                <button class="btn btn-ghost" @click="taskFilter.projectId = ''; taskFilter.status = ''; taskFilter.priority = ''; taskFilter.assignedTo = ''" style="width: 100%;">
+                                    重置筛选
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div v-if="filteredTasks.length === 0" class="empty-state" style="background: #fff; padding: 48px; border-radius: 12px; text-align: center; color: #8c8c8c;">
+                        <i class="fa-solid fa-list-check" style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;"></i>
+                        <p>暂无任务记录, 点击"新增任务"开始创建</p>
+                    </div>
+
+                    <div v-else class="table-container">
+                        <table class="custom-table">
+                            <thead>
+                                <tr>
+                                    <th>任务标题</th>
+                                     <th>所属项目</th>
+                                     <th>关联里程碑</th>
+                                     <th>负责人</th>
+                                     <th>任务进度</th>
+                                     <th>计划工时</th>
+                                     <th>优先级</th>
+                                     <th>截止日期</th>
+                                     <th>状态</th>
+                                     <th>操作</th>
+                                 </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="task in filteredTasks" :key="task.id">
+                                     <td style="font-weight: 500;">{{ task.title }}</td>
+                                     <td>{{ getProjectName(task.projectId) }}</td>
+                                     <td>{{ getMilestoneName(task.projectId, task.milestoneIndex) }}</td>
+                                     <td>{{ task.assignedTo || '-' }}</td>
+                                      <td>
+                                          <div style="display: flex; align-items: center; gap: 8px; min-width: 100px;">
+                                              <div class="progress-outer" style="height: 6px; flex: 1;">
+                                                  <div class="progress-inner" :style="{ width: task.progress + '%' }"></div>
+                                              </div>
+                                              <span style="font-size: 12px;">{{ task.progress }}%</span>
+                                          </div>
+                                          <input type="range" min="0" max="100" v-model.number="task.progress" @change="updateTaskProgress(task)" style="width: 100%; height: 2px; margin-top: 4px;">
+                                      </td>
+                                      <td>{{ task.plannedHours || 0 }}h</td>
+                                     <td>
+                                         <span :class="{
+                                             'badge': true,
+                                             'bg-red': task.priority === 'high',
+                                             'bg-orange': task.priority === 'medium',
+                                             'bg-blue': task.priority === 'low'
+                                         }" :style="{
+                                             background: task.priority === 'high' ? '#fff1f0' : (task.priority === 'medium' ? '#fff7e6' : '#e6f7ff'),
+                                             color: task.priority === 'high' ? '#ff4d4f' : (task.priority === 'medium' ? '#fa8c16' : '#1890ff')
+                                         }">{{ getTaskPriorityText(task.priority) }}</span>
+                                     </td>
+                                     <td>{{ task.dueDate || '-' }}</td>
+                                     <td>
+                                         <span :class="{
+                                             'badge': true,
+                                             'badge-planning': task.status === 'todo',
+                                             'badge-active': task.status === 'in_progress',
+                                             'badge-completed': task.status === 'done'
+                                         }">{{ getTaskStatusText(task.status) }}</span>
+                                     </td>
+                                    <td>
+                                        <div style="display: flex; gap: 8px;">
+                                            <button class="btn btn-ghost btn-sm" @click="editTask(task)">编辑</button>
+                                            <button class="btn btn-ghost btn-danger btn-sm" @click="deleteTask(task.id)">删除</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
                 <!-- Daily Todo -->
                 <div v-if="currentTab === 'todo'">
                     <div class="section-title">
@@ -566,6 +688,15 @@
                             <div class="stat-info">
                                 <div class="stat-value">{{ totalProjects }}</div>
                                 <div class="stat-label">总项目数</div>
+                            </div>
+                        </div>
+                        <div class="stat-card" @click="currentTab = 'tasks'">
+                            <div class="stat-icon bg-cyan">
+                                <i class="fa-solid fa-list-check"></i>
+                            </div>
+                            <div class="stat-info">
+                                <div class="stat-value">{{ tasks.length }}</div>
+                                <div class="stat-label">任务总数</div>
                             </div>
                         </div>
                         <div class="stat-card" @click="currentTab = 'risk'">
@@ -674,10 +805,11 @@
                                 <div><span style="color: #8c8c8c;">成员:</span> {{ project.members.length }}人</div>
                             </div>
 
-                            <div class="action-buttons" style="display: flex; gap: 8px; border-top: 1px solid #f0f0f0; padding-top: 12px; margin-top: 12px;">
-                                <button class="btn btn-ghost" @click="editProject(project)" style="flex: 1;">编辑</button>
-                                <button class="btn btn-ghost" @click="openMemberModal(project)" style="flex: 1;">成员</button>
-                                <button class="btn btn-ghost" @click="openDocumentModal(project)" style="flex: 1;">文档</button>
+                            <div class="action-buttons" style="display: flex; gap: 8px; border-top: 1px solid #f0f0f0; padding-top: 12px; margin-top: 12px; flex-wrap: wrap;">
+                                <button class="btn btn-ghost" @click="editProject(project)" style="flex: 1; min-width: 60px;">编辑</button>
+                                <button class="btn btn-ghost" @click="openMemberModal(project)" style="flex: 1; min-width: 60px;">成员</button>
+                                <button class="btn btn-ghost" @click="openDocumentModal(project)" style="flex: 1; min-width: 60px;">文档</button>
+                                <button class="btn btn-ghost" @click="taskFilter.projectId = project.id; currentTab = 'tasks'" style="flex: 1; min-width: 60px;">任务</button>
                                 <button class="btn btn-ghost btn-danger" @click="deleteProject(project.id)">
                                     <i class="fa-regular fa-trash-can"></i>
                                 </button>
@@ -1027,9 +1159,92 @@
                         <input type="number" class="form-control" v-model.number="newProject.budget" placeholder="0">
                     </div>
                 </div>
+                <div class="form-group">
+                    <label class="form-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" v-model="newProject.autoSyncProgress" style="width: 16px; height: 16px;">
+                        <span>根据子任务进度自动计算项目进度</span>
+                    </label>
+                    <p style="font-size: 11px; color: var(--text-sub); margin-left: 24px;">开启后，项目进度将由所有子任务进度的平均值自动生成</p>
+                </div>
                 <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px;">
                     <button class="btn btn-ghost" @click="closeProjectModal">取消</button>
                     <button class="btn btn-primary" @click="saveProject">保存项目</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Task Modal -->
+        <div class="modal" :class="{ active: showTaskModal }">
+            <div class="modal-content">
+                <div class="section-title">
+                    <span>{{ editingTask ? '编辑任务' : '新增任务' }}</span>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">任务标题 *</label>
+                    <input type="text" class="form-control" v-model="newTask.title" placeholder="输入任务标题">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">所属项目</label>
+                    <select class="form-control" v-model="newTask.projectId" @change="newTask.assignedTo = ''; newTask.milestoneIndex = ''">
+                        <option value="">请选择项目</option>
+                        <option v-for="project in projects" :key="project.id" :value="project.id">{{ project.name }}</option>
+                    </select>
+                </div>
+                <div v-if="newTask.projectId" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div class="form-group">
+                        <label class="form-label">负责人</label>
+                        <select class="form-control" v-model="newTask.assignedTo">
+                            <option value="">请选择负责人</option>
+                            <option v-for="member in getProjectMembers(newTask.projectId)" :key="member" :value="member">{{ member }}</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">关联里程碑</label>
+                        <select class="form-control" v-model="newTask.milestoneIndex">
+                            <option value="">无关联</option>
+                            <option v-for="(milestone, index) in getProjectMilestones(newTask.projectId)" :key="index" :value="index">{{ milestone.name }}</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">任务描述</label>
+                    <textarea class="form-control" v-model="newTask.description" placeholder="描述任务内容" rows="3"></textarea>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;">
+                    <div class="form-group">
+                        <label class="form-label">状态</label>
+                        <select class="form-control" v-model="newTask.status" @change="if(newTask.status === 'done') newTask.progress = 100">
+                            <option value="todo">待办</option>
+                            <option value="in_progress">进行中</option>
+                            <option value="done">已完成</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">优先级</label>
+                        <select class="form-control" v-model="newTask.priority">
+                            <option value="high">高</option>
+                            <option value="medium">中</option>
+                            <option value="low">低</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">任务进度 (%)</label>
+                        <input type="number" class="form-control" v-model.number="newTask.progress" min="0" max="100" @input="if(newTask.progress == 100) newTask.status = 'done'; else if(newTask.progress > 0) newTask.status = 'in_progress'">
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div class="form-group">
+                        <label class="form-label">计划工时 (小时)</label>
+                        <input type="number" class="form-control" v-model.number="newTask.plannedHours" min="0" placeholder="0">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">截止日期</label>
+                        <input type="date" class="form-control" v-model="newTask.dueDate">
+                    </div>
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px;">
+                    <button class="btn btn-ghost" @click="closeTaskModal">取消</button>
+                    <button class="btn btn-primary" @click="saveTask">保存任务</button>
                 </div>
             </div>
         </div>
@@ -1330,6 +1545,28 @@
                 return {
                     currentTab: 'overview',
                     
+                    // 任务管理
+                    showTaskModal: false,
+                    editingTask: null,
+                    newTask: {
+                        title: '',
+                        projectId: '',
+                        description: '',
+                        status: 'todo',
+                        priority: 'medium',
+                        dueDate: '',
+                        assignedTo: '',
+                        plannedHours: 0,
+                        progress: 0,
+                        milestoneIndex: ''
+                    },
+                    taskFilter: {
+                        projectId: '',
+                        status: '',
+                        priority: '',
+                        assignedTo: ''
+                    },
+
                     // 每日待办
                     todos: [],
                     newTodoText: '',
@@ -1414,6 +1651,33 @@
                 };
             },
             computed: {
+                allTasks() {
+                    let list = [];
+                    this.projects.forEach(p => {
+                        if (p.tasks) {
+                            p.tasks.forEach(t => {
+                                list.push({ ...t, projectId: p.id, projectName: p.name });
+                            });
+                        }
+                    });
+                    return list;
+                },
+                allAssignees() {
+                    const assignees = new Set();
+                    this.allTasks.forEach(t => {
+                        if (t.assignedTo) assignees.add(t.assignedTo);
+                    });
+                    return Array.from(assignees);
+                },
+                filteredTasks() {
+                    return this.allTasks.filter(task => {
+                        const projectMatch = !this.taskFilter.projectId || task.projectId === this.taskFilter.projectId;
+                        const statusMatch = !this.taskFilter.status || task.status === this.taskFilter.status;
+                        const priorityMatch = !this.taskFilter.priority || task.priority === this.taskFilter.priority;
+                        const assigneeMatch = !this.taskFilter.assignedTo || task.assignedTo === this.taskFilter.assignedTo;
+                        return projectMatch && statusMatch && priorityMatch && assigneeMatch;
+                    });
+                },
                 filteredTodos() {
                     return this.todos.filter(t => t.date === this.todoSelectedDate);
                 },
@@ -1454,6 +1718,20 @@
                         this.operations = parsed.operations || [];
                         this.costs = parsed.costs || [];
                         this.todos = parsed.todos || [];
+                        
+                        // 数据迁移：将旧的全局任务整合进对应项目
+                        if (parsed.tasks && parsed.tasks.length > 0) {
+                            parsed.tasks.forEach(task => {
+                                const project = this.projects.find(p => p.id === task.projectId);
+                                if (project) {
+                                    if (!project.tasks) project.tasks = [];
+                                    // 检查是否已存在，避免重复迁移
+                                    if (!project.tasks.some(t => t.id === task.id)) {
+                                        project.tasks.push(task);
+                                    }
+                                }
+                            });
+                        }
                     }
                 },
                 saveData() {
@@ -1464,8 +1742,140 @@
                         operations: this.operations,
                         costs: this.costs,
                         todos: this.todos
+                        // 不再保存全局 tasks 数组
                     };
                     localStorage.setItem('projectManagementData', JSON.stringify(data));
+                },
+
+                // 任务管理
+                addTask(projectId) {
+                    this.editingTask = null;
+                    this.newTask = {
+                        title: '',
+                        projectId: projectId || '',
+                        description: '',
+                        status: 'todo',
+                        priority: 'medium',
+                        dueDate: '',
+                        assignedTo: '',
+                        plannedHours: 0,
+                        progress: 0,
+                        milestoneIndex: ''
+                    };
+                    this.showTaskModal = true;
+                },
+                saveTask() {
+                    if (!this.newTask.title || !this.newTask.projectId) {
+                        alert('请输入任务标题并选择所属项目');
+                        return;
+                    }
+                    
+                    const project = this.projects.find(p => p.id === this.newTask.projectId);
+                    if (!project) return;
+                    if (!project.tasks) project.tasks = [];
+
+                    if (this.editingTask) {
+                        // 如果项目变了，从原项目中删除
+                        if (this.editingTask.projectId !== this.newTask.projectId) {
+                            const oldProject = this.projects.find(p => p.id === this.editingTask.projectId);
+                            if (oldProject && oldProject.tasks) {
+                                oldProject.tasks = oldProject.tasks.filter(t => t.id !== this.editingTask.id);
+                                this.updateProjectProgress(oldProject);
+                            }
+                        }
+
+                        const index = project.tasks.findIndex(t => t.id === this.editingTask.id);
+                        if (index !== -1) {
+                            project.tasks[index] = { ...this.newTask, id: this.editingTask.id };
+                        } else {
+                            project.tasks.push({ ...this.newTask, id: this.editingTask.id });
+                        }
+                    } else {
+                        const task = {
+                            id: Date.now(),
+                            ...this.newTask
+                        };
+                        project.tasks.unshift(task);
+                    }
+                    
+                    this.updateProjectProgress(project);
+                    this.saveData();
+                    this.closeTaskModal();
+                },
+                editTask(task) {
+                    this.editingTask = { ...task };
+                    this.newTask = { ...task };
+                    this.showTaskModal = true;
+                },
+                deleteTask(id, projectId) {
+                    if (confirm('确定要删除此任务吗?')) {
+                        let targetProject = null;
+                        if (projectId) {
+                            targetProject = this.projects.find(p => p.id === projectId);
+                        } else {
+                            targetProject = this.projects.find(p => p.tasks && p.tasks.some(t => t.id === id));
+                        }
+
+                        if (targetProject && targetProject.tasks) {
+                            targetProject.tasks = targetProject.tasks.filter(t => t.id !== id);
+                            this.updateProjectProgress(targetProject);
+                            this.saveData();
+                        }
+                    }
+                },
+                updateProjectProgress(project) {
+                    if (project.autoSyncProgress && project.tasks && project.tasks.length > 0) {
+                        const totalProgress = project.tasks.reduce((sum, t) => sum + (t.progress || 0), 0);
+                        project.progress = Math.round(totalProgress / project.tasks.length);
+                    }
+                },
+                updateTaskProgress(task) {
+                    if (task.progress == 100) {
+                        task.status = 'done';
+                    } else if (task.progress > 0) {
+                        task.status = 'in_progress';
+                    } else {
+                        task.status = 'todo';
+                    }
+                    
+                    const project = this.projects.find(p => p.id === task.projectId);
+                    if (project) {
+                        this.updateProjectProgress(project);
+                    }
+                    this.saveData();
+                },
+                closeTaskModal() {
+                    this.showTaskModal = false;
+                    this.editingTask = null;
+                },
+                getTaskPriorityText(priority) {
+                    const map = {
+                        low: '低',
+                        medium: '中',
+                        high: '高'
+                    };
+                    return map[priority] || priority;
+                },
+                getTaskStatusText(status) {
+                    const map = {
+                        todo: '待办',
+                        in_progress: '进行中',
+                        done: '已完成'
+                    };
+                    return map[status] || status;
+                },
+                getProjectMembers(projectId) {
+                    const project = this.projects.find(p => p.id === projectId);
+                    return project ? project.members : [];
+                },
+                getProjectMilestones(projectId) {
+                    const project = this.projects.find(p => p.id === projectId);
+                    return project ? project.milestones || [] : [];
+                },
+                getMilestoneName(projectId, milestoneIndex) {
+                    if (milestoneIndex === '' || milestoneIndex === undefined) return '-';
+                    const milestones = this.getProjectMilestones(projectId);
+                    return milestones[milestoneIndex] ? milestones[milestoneIndex].name : '-';
                 },
 
                 // 每日待办
@@ -1544,34 +1954,71 @@
                     const completedTodos = periodTodos.filter(t => t.completed);
                     const pendingTodos = periodTodos.filter(t => !t.completed);
                     
-                    report += `一、 任务完成情况\n`;
+                    report += `一、 每日待办汇总\n`;
                     if (completedTodos.length > 0) {
-                        report += `✅ 已完成任务：\n`;
+                        report += `✅ 已完成待办：\n`;
                         completedTodos.forEach(t => report += `  - ${t.text} (100%)\n`);
                     }
                     if (pendingTodos.length > 0) {
-                        report += `⏳ 待推进任务：\n`;
+                        report += `⏳ 待推进待办：\n`;
                         pendingTodos.forEach(t => report += `  - ${t.text} (当前进度: ${t.progress || 0}%)\n`);
                     }
                     if (periodTodos.length === 0) {
-                        report += `  - 该时段内暂无任务记录\n`;
+                        report += `  - 该时段内暂无每日待办记录\n`;
                     }
                     report += `\n`;
 
-                    // 2. 项目进度动态
-                    report += `二、 项目进度动态\n`;
+                    // 2. 任务执行情况 (WBS)
+                    report += `二、 任务执行情况 (WBS)\n`;
+                    const periodTasks = this.allTasks.filter(t => filterByDate(t.dueDate || t.id));
+                    const completedTasks = periodTasks.filter(t => t.status === 'done' || t.progress === 100);
+                    const pendingTasks = periodTasks.filter(t => t.status !== 'done' && t.progress < 100);
+
+                    report += `  - 期间涉及任务: ${periodTasks.length} 项\n`;
+                    report += `  - 已完成: ${completedTasks.length} 项\n`;
+                    report += `  - 进行中: ${pendingTasks.length} 项\n\n`;
+
+                    if (periodTasks.length > 0) {
+                        report += `【按负责人统计】\n`;
+                        const byAssignee = {};
+                        periodTasks.forEach(t => {
+                            const name = t.assignedTo || '未分配';
+                            if (!byAssignee[name]) byAssignee[name] = { done: [], todo: [] };
+                            if (t.status === 'done' || t.progress === 100) {
+                                byAssignee[name].done.push(t);
+                            } else {
+                                byAssignee[name].todo.push(t);
+                            }
+                        });
+
+                        for (const name in byAssignee) {
+                            report += `  👤 ${name}:\n`;
+                            if (byAssignee[name].done.length > 0) {
+                                report += `    ✅ 已完成: ${byAssignee[name].done.map(t => t.title).join(', ')}\n`;
+                            }
+                            if (byAssignee[name].todo.length > 0) {
+                                report += `    ⏳ 进行中: ${byAssignee[name].todo.map(t => `${t.title}(${t.progress}%)`).join(', ')}\n`;
+                            }
+                        }
+                    } else {
+                        report += `  - 期间无新增或截止任务\n`;
+                    }
+                    report += `\n`;
+
+                    // 3. 项目进度动态
+                    report += `三、 项目进度动态\n`;
                     if (this.projects.length > 0) {
                         this.projects.forEach(p => {
-                            report += `  - ${p.name}: 目前进度 ${p.progress}%, 状态: ${this.getStatusText(p.status)}\n`;
+                            report += `  - ${p.name}: 目前进度 ${p.progress}%, 状态: ${this.getStatusText(p.status)}${p.autoSyncProgress ? ' (由任务自动汇总)' : ''}\n`;
                         });
                     } else {
                         report += `  - 暂无关联项目\n`;
                     }
                     report += `\n`;
 
-                    // 3. 风险与问题 (显示当前所有未关闭的风险)
+                    // 4. 风险与问题 (显示当前所有未关闭的风险)
                     const activeRisks = this.risks.filter(r => r.status !== 'closed');
-                    report += `三、 风险预警与处理\n`;
+                    report += `四、 风险预警与处理\n`;
                     if (activeRisks.length > 0) {
                         activeRisks.forEach(r => {
                             report += `  - [${this.getRiskLevelText(r.level)}] ${r.description} (应对: ${r.mitigation})\n`;
@@ -1581,8 +2028,8 @@
                     }
                     report += `\n`;
 
-                    // 4. 运维记录
-                    report += `四、 日常运维情况\n`;
+                    // 5. 运维记录
+                    report += `五、 日常运维情况\n`;
                     const recentOps = this.operations.filter(o => filterByDate(o.date));
                     if (recentOps.length > 0) {
                         recentOps.forEach(o => {
@@ -1593,8 +2040,8 @@
                     }
                     report += `\n`;
 
-                    // 5. 成本统计
-                    report += `五、 成本支出汇总\n`;
+                    // 6. 成本统计
+                    report += `六、 成本支出汇总\n`;
                     const recentCosts = this.costs.filter(c => filterByDate(c.date));
                     const totalRecentCost = recentCosts.reduce((sum, c) => sum + c.amount, 0);
                     if (recentCosts.length > 0) {
@@ -1631,10 +2078,12 @@
                         status: 'planning',
                         manager: '',
                         progress: 0,
+                        autoSyncProgress: false,
                         budget: 0,
                         members: [],
                         documents: [],
-                        milestones: []
+                        milestones: [],
+                        tasks: []
                     };
                 },
                 saveProject() {
@@ -1902,6 +2351,7 @@
                 getTabTitle() {
                     const titles = {
                         overview: '我的仪表盘',
+                        tasks: '任务管理',
                         todo: '每日待办任务',
                         projects: '项目管理',
                         progress: '进度管理',
